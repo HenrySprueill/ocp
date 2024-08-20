@@ -120,11 +120,14 @@ class LBFGS:
                     or iteration == 0
                 ):
                     self.write(energy, forces, update_mask)
-
+                    
             if not converged and iteration < steps - 1:
                 self.step(iteration, forces, update_mask)
 
             iteration += 1
+
+        # Write the converged atoms to trajectory
+        self.write(energy, forces, torch.logical_not(update_mask))
 
         # GPU memory usage as per nvidia-smi seems to gradually build up as
         # batches are processed. This releases unoccupied cached memory.
