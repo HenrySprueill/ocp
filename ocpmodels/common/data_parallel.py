@@ -79,6 +79,17 @@ class OCPDataParallel(torch.nn.DataParallel):
         outputs = self.parallel_apply(replicas, inputs, kwargs)
         return self.gather(outputs, self.output_device)
 
+    def __getattr__(self, name):
+        """A function to allow the passthrough of custom methods for nn modules in DataParallel.
+
+        Suggestion by github user dniku:
+        https://github.com/pytorch/pytorch/issues/16885#issuecomment-551779897
+        """
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
+
 
 class ParallelCollater:
     def __init__(self, num_gpus: int, otf_graph: bool = False) -> None:
