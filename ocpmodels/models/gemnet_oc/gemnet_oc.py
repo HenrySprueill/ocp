@@ -697,7 +697,13 @@ class GemNetOC(BaseModel):
 
         return cosφ_cab, cosφ_abd, angle_cabd
 
-    def select_symmetric_edges(self, tensor, mask, reorder_idx, opposite_neg):
+    def select_symmetric_edges(
+        self,
+        tensor: torch.Tensor,
+        mask: torch.Tensor,
+        reorder_idx: torch.Tensor,
+        opposite_neg,
+    ) -> torch.Tensor:
         """Use a mask to remove values of removed edges and then
         duplicate the values for the correct edge direction.
 
@@ -953,7 +959,10 @@ class GemNetOC(BaseModel):
 
     def get_graphs_and_indices(self, data):
         """ "Generate embedding and interaction graphs and indices."""
-        num_atoms = data.atomic_numbers.size(0)
+        try:
+            num_atoms = data.atomic_numbers.size(0)
+        except AttributeError:
+            num_atoms = data.z.size(0)
 
         # Atom interaction graph is always the largest
         if (
@@ -1222,7 +1231,10 @@ class GemNetOC(BaseModel):
     def forward(self, data):
         pos = data.pos
         batch = data.batch
-        atomic_numbers = data.atomic_numbers.long()
+        try:
+            atomic_numbers = data.atomic_numbers.long()
+        except AttributeError:
+            atomic_numbers = data.z.long()
         num_atoms = atomic_numbers.shape[0]
 
         if self.regress_forces and not self.direct_forces:
@@ -1317,6 +1329,8 @@ class GemNetOC(BaseModel):
                 E_t, batch, dim=0, dim_size=nMolecules, reduce="mean"
             )  # (nMolecules, num_targets)
 
+        E_t = E_t.squeeze(1)  # (num_molecules)
+        outputs = {"energy": E_t}
         if self.regress_forces:
             if self.direct_forces:
                 if self.forces_coupled:  # enforce F_st = F_ts
@@ -1348,12 +1362,21 @@ class GemNetOC(BaseModel):
             else:
                 F_t = self.force_scaler.calc_forces_and_update(E_t, pos)
 
-            E_t = E_t.squeeze(1)  # (num_molecules)
             F_t = F_t.squeeze(1)  # (num_atoms, 3)
-            return E_t, F_t
-        else:
-            E_t = E_t.squeeze(1)  # (num_molecules)
-            return E_t
+
+            outputs["forces"] = F_t
+
+        print("h.size(), m.size()")
+        print(h.size(), m.size())
+        print("E.size(), F.size()")
+        print(E_t.size(), F_t.size())
+
+        self.model_outemb = {"energy": E_t, 
+                             "forces": F_t,
+                             "hidden_h": h,
+                             "hidden_m": m
+                            }
+        return outputs
 
     @property
     def num_params(self) -> int:
