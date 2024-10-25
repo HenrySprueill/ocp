@@ -79,7 +79,7 @@ def ml_relax(
             # move OOM recovery code outside of except clause to allow tensors to be freed.
             data_list = batch.to_data_list()
             if len(data_list) == 1:
-                raise e
+                raise err
             logging.info(
                 f"Failed to relax batch with size: {len(data_list)}, splitting into two..."
             )
