@@ -52,6 +52,7 @@ def ml_relax(
         calc = TorchCalc(model, transform)
 
         # Run ML-based relaxation
+        err = RuntimeError
         traj_dir = relax_opt.get("traj_dir", None)
         optimizer = LBFGS(
             batch,
@@ -70,6 +71,7 @@ def ml_relax(
             relaxed_batch = optimizer.run(fmax=fmax, steps=steps)
             relaxed_batches.append(relaxed_batch)
         except RuntimeError as e:
+            err = e
             oom = True
             torch.cuda.empty_cache()
 
